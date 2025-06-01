@@ -69,9 +69,3 @@ Ekran görüntüleri → /screenshots klasörüne yüklenecek
 
 📁 Kullanım Kılavuzu (v2.0) → /docs/kullanim\_klavuzu\_v2.0.pdf
 📁 Proje Broşürü → /docs/proje\_brosuru.pdf
-
-—
-
-Hazırsan bu yapının ilk klasör ve dosyalarını senin için oluşturabilirim veya .zip halinde paylaşmak istersen yapıyı dışa da aktarabilirim. İstersen ilk adım olarak docker-compose.yml veya README dosyasını da birlikte yazabiliriz.
-
-Ne ile başlamak istersin? Docker klasörleri mi, yoksa README'nin final hali mi?
