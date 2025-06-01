@@ -45,11 +45,11 @@ Proje üç temel Docker container üzerinde çalışır:
 ## 📦 Docker Kurulumu
 
 Projenizi başlatmak için:
-
-git clone [https://github.com/HomeOS-ai/HomeOS.git](https://github.com/HomeOS-ai/HomeOS.git)
-cd homeos-ai/config
-docker-compose up --build
-
+```bash
+  git clone [https://github.com/HomeOS-ai/HomeOS.git](https://github.com/HomeOS-ai/HomeOS.git)
+  cd homeos-ai/config
+  docker-compose up --build
+```
 ## 🤝 Katkıda Bulun
 
 Bu proje açık kaynaklıdır. Dünya genelinden geliştiriciler, araştırmacılar ve öğrenciler katkı yapabilir. Ayrıntılı rehber için CONTRIBUTING.md dosyasını inceleyiniz.
