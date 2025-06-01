@@ -52,8 +52,7 @@ Projenizi başlatmak için:
 ```
 ## 🤝 Katkıda Bulun
 
-Bu proje açık kaynaklıdır. Dünya genelinden geliştiriciler, araştırmacılar ve öğrenciler katkı yapabilir. Ayrıntılı rehber için CONTRIBUTING.md dosyasını inceleyiniz.
-
+Bu proje açık kaynaklıdır. Dünya genelinden geliştiriciler, araştırmacılar ve öğrenciler katkı yapabilir. 
 ## 💡 Destek ve Bağış
 
 HomeOS-AI projesi, özgür yazılım ilkeleriyle geliştirilmektedir.
