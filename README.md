@@ -29,7 +29,7 @@ HomeOS-AI, Jetson Nano üzerinde çalışan yerel bir yapay zeka modeli (TinyLla
 * MQTT Broker (Mosquitto)
 * FastAPI (backend)
 * Flutter (mobil uygulama)
-* PostgreSQL (veri saklama)
+* MongoDB (veri saklama)
 * WireGuard (uzaktan güvenli bağlantı)
 
 ## 🧱 Mimarik Yapı
@@ -59,13 +59,7 @@ Bu proje açık kaynaklıdır. Dünya genelinden geliştiriciler, araştırmacı
 HomeOS-AI projesi, özgür yazılım ilkeleriyle geliştirilmektedir.
 Eğer siz de yerli yapay zeka ve mahremiyet odaklı teknolojilere destek olmak istiyorsanız GitHub üzerinden yıldız vererek, sosyal medya paylaşımları yaparak veya bağışta bulunarak destek olabilirsiniz.
 
-## 🌐 Sosyal Medya ve Topluluk
 
-LinkedIn Paylaşımı (Tüm ekip + danışman hocamız etiketlenmeli)
-Ekran görüntüleri → /screenshots klasörüne yüklenecek
-
-🎯 Danışmanımız: Volkan Altuntaş ([valtuntas@gmail.com](mailto:valtuntas@gmail.com))
-📣 LinkedIn: @VolkanAltuntas
 
 📁 Kullanım Kılavuzu (v2.0) → /docs/kullanim\_klavuzu\_v2.0.pdf
 📁 Proje Broşürü → /docs/proje\_brosuru.pdf
