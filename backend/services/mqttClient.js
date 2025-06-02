@@ -1,6 +1,6 @@
 const mqtt = require('mqtt');
 const EventEmitter = require('events');
-const config = require('../config');
+const config = require('../config/config');
 const logger = require('../utils/logger');
 
 class MQTTClient extends EventEmitter {

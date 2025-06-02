@@ -1,6 +1,7 @@
+// backend/utils/helpers.js
 const crypto = require('crypto');
 
-// API response formatları
+// API yanıt formatları: Frontend'e tutarlı yanıtlar döndürmek için
 const apiResponse = {
   success: (data = null, message = 'Success') => ({
     success: true,
@@ -30,11 +31,11 @@ const apiResponse = {
   })
 };
 
-// Sayfalama yardımcıları
+// Sayfalama yardımcıları: Büyük veri setlerini yönetmek için
 const pagination = {
   getPaginationData: (page = 1, limit = 10, total = 0) => {
     const currentPage = Math.max(1, parseInt(page));
-    const pageSize = Math.max(1, Math.min(100, parseInt(limit))); // Max 100 item
+    const pageSize = Math.max(1, Math.min(100, parseInt(limit))); // Maksimum 100 öğe
     const totalPages = Math.ceil(total / pageSize);
     const skip = (currentPage - 1) * pageSize;
 
@@ -62,10 +63,11 @@ const pagination = {
   })
 };
 
-// String yardımcıları
+// String yardımcıları: Metin işleme için
 const stringHelpers = {
   generateId: (length = 8) => {
-    return crypto.randomBytes(length).toString('hex');
+    // Kriptografik olarak güçlü rastgele ID üretir
+    return crypto.randomBytes(Math.ceil(length / 2)).toString('hex').slice(0, length);
   },
 
   slugify: (text) => {
@@ -73,14 +75,15 @@ const stringHelpers = {
       .toString()
       .toLowerCase()
       .trim()
-      .replace(/\s+/g, '-')
-      .replace(/[^\w-]+/g, '')
-      .replace(/--+/g, '-')
-      .replace(/^-+/, '')
-      .replace(/-+$/, '');
+      .replace(/\s+/g, '-')          // Boşlukları tirelerle değiştir
+      .replace(/[^\w-]+/g, '')       // Kelime olmayan karakterleri kaldır
+      .replace(/--+/g, '-')          // Birden fazla tireyi tek tireye indir
+      .replace(/^-+/, '')           // Başlangıçtaki tireleri kaldır
+      .replace(/-+$/, '');          // Sondaki tireleri kaldır
   },
 
   capitalizeFirst: (str) => {
+    if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
   },
 
@@ -90,7 +93,7 @@ const stringHelpers = {
   }
 };
 
-// Tarih yardımcıları
+// Tarih yardımcıları: Tarih ve saat manipülasyonu için
 const dateHelpers = {
   formatDate: (date, format = 'YYYY-MM-DD HH:mm:ss') => {
     const d = new Date(date);
@@ -132,7 +135,7 @@ const dateHelpers = {
   }
 };
 
-// Validation yardımcıları
+// Doğrulama yardımcıları: Gelen verileri kontrol etmek için
 const validation = {
   isEmail: (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -140,23 +143,25 @@ const validation = {
   },
 
   isStrongPassword: (password) => {
-    // En az 8 karakter, 1 büyük harf, 1 küçük harf, 1 rakam
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/;
+    // En az 8 karakter, 1 büyük harf, 1 küçük harf, 1 rakam, 1 özel karakter
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
     return passwordRegex.test(password);
   },
 
   isValidObjectId: (id) => {
+    // MongoDB ObjectId formatı için
     const objectIdRegex = /^[0-9a-fA-F]{24}$/;
     return objectIdRegex.test(id);
   },
 
   sanitizeInput: (input) => {
     if (typeof input !== 'string') return input;
+    // Basit bir HTML ve script tag temizliği
     return input.trim().replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
   }
 };
 
-// Async yardımcıları
+// Async yardımcıları: Asenkron işlemleri yönetmek için
 const asyncHelpers = {
   delay: (ms) => new Promise(resolve => setTimeout(resolve, ms)),
 
@@ -169,7 +174,7 @@ const asyncHelpers = {
       } catch (error) {
         lastError = error;
         if (i < maxRetries) {
-          await asyncHelpers.delay(delay * Math.pow(2, i)); // Exponential backoff
+          await asyncHelpers.delay(delay * Math.pow(2, i)); // Üstel geri çekilme
         }
       }
     }
@@ -187,33 +192,41 @@ const asyncHelpers = {
   }
 };
 
-// Cihaz durumu yardımcıları
+// Cihaz durumu yardımcıları (Örnek, projenize özel olarak düzenlenmeli)
 const deviceHelpers = {
   getDeviceStatus: (device) => {
-    if (!device.lastSeen) return 'unknown';
+    // Bu fonksiyon Home Assistant entity'leri için daha uygun hale getirilmeli
+    // Örneğin, 'on' veya 'off' gibi durumları kontrol etmeli
+    if (device && typeof device.state === 'string') {
+        return device.state.toLowerCase(); // HA'dan gelen state doğrudan döndürülebilir
+    }
+    if (!device.lastSeen) return 'unknown'; // Varsayılan olarak bilinmiyor
     
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     return new Date(device.lastSeen) > fiveMinutesAgo ? 'online' : 'offline';
   },
 
   formatDeviceData: (device) => {
+    // Bu fonksiyon, HA entity verisini Flutter'a uygun hale getirmek için kullanılır.
+    // getDevices API'sinde kullanabiliriz.
     return {
-      id: device._id,
-      name: device.name,
-      type: device.type,
-      status: deviceHelpers.getDeviceStatus(device),
-      lastSeen: device.lastSeen,
-      properties: device.properties || {},
-      location: device.location || 'Belirtilmemiş'
+      id: device.entity_id || device._id, // HA'dan entity_id, DB'den _id
+      name: device.attributes?.friendly_name || device.name || device.entity_id,
+      type: device.entity_id ? device.entity_id.split('.')[0] : device.type, // HA domaini veya kendi tipi
+      status: device.state ? device.state.toLowerCase() : deviceHelpers.getDeviceStatus(device), // HA state veya genel durum
+      lastSeen: device.lastSeen, // Eğer varsa
+      properties: device.attributes || device.properties || {}, // HA attributes veya kendi properties
+      location: device.location || 'Unknown' // Eğer varsa
     };
   },
 
   validateDeviceCommand: (deviceType, command) => {
+    // Bu fonksiyon LLM'den gelen komutları doğrulamak için kullanılabilir.
     const allowedCommands = {
-      'light': ['on', 'off', 'dim', 'color'],
-      'switch': ['on', 'off'],
-      'thermostat': ['set_temperature', 'set_mode'],
-      'sensor': [], // Sensörler komut almaz
+      'light': ['on', 'off', 'toggle', 'dim', 'color', 'set_brightness', 'set_color_temp'],
+      'switch': ['on', 'off', 'toggle'],
+      'thermostat': ['set_temperature', 'set_hvac_mode', 'set_fan_mode'],
+      'sensor': [], // Sensörler genellikle komut almaz
       'camera': ['record', 'snapshot', 'move'],
       'door': ['lock', 'unlock', 'open', 'close']
     };
@@ -222,6 +235,7 @@ const deviceHelpers = {
   }
 };
 
+// Tüm yardımcı modülleri dışa aktar
 module.exports = {
   apiResponse,
   pagination,
