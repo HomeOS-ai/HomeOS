@@ -103,7 +103,7 @@ module.exports = (sequelize, DataTypes) => {
     indexes: [
       { fields: ['type'] },
       { fields: ['source'] },
-      { fields: ['execution.status'] },
+      //{ fields: ['execution.status'] },
       { fields: ['createdAt'] },
       { fields: ['commandUniqueId'] } // Özelleştirilmiş ID için indeks
       // İlişkili kolonlar için indeksler:
