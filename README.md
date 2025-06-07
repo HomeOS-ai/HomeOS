@@ -27,10 +27,11 @@ HomeOS-AI, Jetson Nano üzerinde çalışan yerel bir yapay zeka modeli (TinyLla
 * Llama.cpp + TinyLlama (1.1B) + CUDA
 * Home Assistant (Docker içinde)
 * MQTT Broker (Mosquitto)
-* FastAPI (backend)
+* RestFul API (backend)
 * Flutter (mobil uygulama)
-* MongoDB (veri saklama)
+* MySQL (veri saklama)
 * WireGuard (uzaktan güvenli bağlantı)
+* NodeJs(backend işlemleri)
 
 ## 🧱 Mimarik Yapı
 
