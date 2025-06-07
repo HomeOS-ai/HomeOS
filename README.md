@@ -17,8 +17,8 @@ HomeOS-AI, Jetson Nano üzerinde çalışan yerel bir yapay zeka modeli (TinyLla
 | Musa Adıgüzel        | Flutter Mobil Uygulama       | Flutter, Firebase, UI/UX        |
 | Siraç Gezgin         | LLM & CUDA                   | Llama.cpp, Whisper, Jetson CUDA |
 | Ertuğrul Çapan       | Siber Güvenlik               | VPN, SSH Hardening, 2FA, Nginx  |
-| Kenan Yılmaz         | Veritabanı & Backend         | Nodejs, MongoDB, ORM        |
-| Ali Erdem Baltacı    | Backend API & MQTT           | FastAPI, MQTT, RESTful API      |
+| Kenan Yılmaz         | Veritabanı & Backend         | Nodejs, MySQL, ORM        |
+| Ali Erdem Baltacı    | Backend API & MQTT           | RestFul API, MQTT, NodeJs,MySQL      |
 
 ## ⚙ Kullanılan Teknolojiler
 
