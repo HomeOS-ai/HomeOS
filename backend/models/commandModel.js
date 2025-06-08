@@ -49,7 +49,7 @@ module.exports = (sequelize, DataTypes) => {
     // },
 
     command: {
-      type: DataTypes.JSON, // MySQL 5.7+ veya MariaDB 10.2.7+ için JSON desteği
+      type: DataTypes.TEXT, // MySQL 5.7+ veya MariaDB 10.2.7+ için JSON desteği
       allowNull: false
     },
 
@@ -59,39 +59,39 @@ module.exports = (sequelize, DataTypes) => {
     },
 
     aiProcessing: {
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       allowNull: true
     },
 
     execution: {
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       allowNull: false,
       defaultValue: { status: 'pending', attempts: 0, maxAttempts: 3 }
     },
 
     response: {
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       allowNull: true,
       defaultValue: { success: false }
     },
 
     automation: {
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       allowNull: true
     },
 
     batch: {
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       allowNull: true
     },
 
     context: {
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       allowNull: true
     },
 
-    metadata: {
-      type: DataTypes.JSON,
+    metadata:{ 
+      type: DataTypes.TEXT,
       allowNull: true
     }
   }, {

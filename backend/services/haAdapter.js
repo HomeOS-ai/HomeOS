@@ -1,53 +1,48 @@
+// backend/services/haAdapter.js
 const axios = require('axios');
-const config = require('../config');
-const logger = require('../utils/logger');
+const config = require('../config/index.js'); // config yolunu kontrol et
+const logger = require('../utils/logger'); // logger modülümüz
+
+// Home Assistant bilgileri gelene kadar simülasyon modunu aktif edelim
+// Eğer config'den geçerli bir token gelmezse simülasyon aktif olur
+const IS_SIMULATION_MODE = !config.homeAssistant.token || config.homeAssistant.token === 'YOUR_HA_TOKEN_HERE_UNTIL_REAL_ONE_AVAILABLE';
+
+const haAxios = axios.create({
+  baseURL: config.homeAssistant.baseUrl + '/api', // Base URL'ye /api ekliyoruz
+  timeout: 10000, // Timeout ekleyelim, bağlantı kuramazsa sonsuza kadar beklemesin
+  headers: {
+    'Authorization': `Bearer ${config.homeAssistant.token}`,
+    'Content-Type': 'application/json',
+  },
+});
+
+// Axios interceptor'ları (loglama ve hata yönetimi için)
+haAxios.interceptors.request.use(
+  (config) => {
+    logger.debug(`[HA API Request] ${config.method?.toUpperCase()} ${config.url}`);
+    return config;
+  },
+  (error) => {
+    logger.error('[HA API Request Error]:', error.message);
+    return Promise.reject(error);
+  }
+);
+
+haAxios.interceptors.response.use(
+  (response) => {
+    logger.debug(`[HA API Response] ${response.status} ${response.config.url}`);
+    return response;
+  },
+  (error) => {
+    logger.error('[HA API Response Error]:', error.response?.status, error.response?.data || error.message);
+    return Promise.reject(error);
+  }
+);
 
 class HomeAssistantAdapter {
   constructor() {
-    this.baseURL = config.HA_BASE_URL || 'http://localhost:8123';
-    this.token = config.HA_TOKEN;
-    this.apiClient = null;
-    this.isConnected = false;
-    
-    this.initializeClient();
-  }
-
-  /**
-   * HTTP client'ı başlatır
-   */
-  initializeClient() {
-    this.apiClient = axios.create({
-      baseURL: `${this.baseURL}/api`,
-      timeout: 10000,
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    // Request interceptor
-    this.apiClient.interceptors.request.use(
-      (config) => {
-        logger.debug(`HA API Request: ${config.method?.toUpperCase()} ${config.url}`);
-        return config;
-      },
-      (error) => {
-        logger.error('HA API Request hatası:', error);
-        return Promise.reject(error);
-      }
-    );
-
-    // Response interceptor
-    this.apiClient.interceptors.response.use(
-      (response) => {
-        logger.debug(`HA API Response: ${response.status} ${response.config.url}`);
-        return response;
-      },
-      (error) => {
-        logger.error('HA API Response hatası:', error.response?.data || error.message);
-        return Promise.reject(error);
-      }
-    );
+    this.isConnected = false; // Bağlantı durumu
+    // Bağlantıyı hemen denemek için initializeClient() burada çağrılmaz, testConnection() kullanılır
   }
 
   /**
@@ -55,10 +50,15 @@ class HomeAssistantAdapter {
    * @returns {boolean} Bağlantı durumu
    */
   async testConnection() {
+    if (IS_SIMULATION_MODE) {
+      logger.info('HomeAssistantAdapter: Bağlantı testi simülasyon modunda başarılı kabul edildi.');
+      this.isConnected = true;
+      return true;
+    }
     try {
-      const response = await this.apiClient.get('/');
+      const response = await haAxios.get('/config'); // /api/config endpoint'i genel konfigürasyonu verir
       this.isConnected = response.status === 200;
-      logger.info('Home Assistant bağlantısı başarılı');
+      logger.info('Home Assistant bağlantısı başarılı.');
       return true;
     } catch (error) {
       this.isConnected = false;
@@ -68,77 +68,63 @@ class HomeAssistantAdapter {
   }
 
   /**
-   * Tüm entity'leri getirir
+   * Tüm entity'leri getirir (HA states API'si)
    * @returns {Array} Entity listesi
    */
-  async getStates() {
+  async getDevices() {
+    if (IS_SIMULATION_MODE) {
+      logger.info('HomeAssistantAdapter: Cihaz listesi simülasyon modundan dönülüyor.');
+      // Simüle edilmiş cihaz listesi (HA'dan gelen entity formatına daha yakın)
+      return [
+        { entity_id: 'light.salon_lambasi', attributes: { friendly_name: 'Salon Lambası', brightness: 0 }, state: 'off' },
+        { entity_id: 'switch.mutfak_prizi', attributes: { friendly_name: 'Mutfak Prizi' }, state: 'on' },
+        { entity_id: 'climate.buzdolabi', attributes: { friendly_name: 'Buzdolabı', temperature: 4 }, state: 'cool' }
+      ].map(entity => ({ // Flutter'ın beklediği daha basit formata dönüştür
+          id: entity.entity_id,
+          name: entity.attributes.friendly_name || entity.entity_id,
+          type: entity.entity_id.split('.')[0],
+          state: entity.state,
+          brightness: entity.attributes.brightness || undefined,
+          temperature: entity.attributes.temperature || undefined,
+          // ... diğer özellikler
+      }));
+    }
     try {
-      const response = await this.apiClient.get('/states');
-      return response.data;
+      const response = await haAxios.get('/states'); // Home Assistant'tan tüm entity durumlarını çek
+      // Flutter için daha anlamlı bir formatta filtreleyip dönüştürelim
+      return response.data.map(entity => ({
+        id: entity.entity_id,
+        name: entity.attributes.friendly_name || entity.entity_id,
+        type: entity.entity_id.split('.')[0], // light, switch, climate vb.
+        state: entity.state,
+        brightness: entity.attributes.brightness || undefined,
+        temperature: entity.attributes.temperature || undefined,
+        // ... daha fazla özellik
+      }));
     } catch (error) {
-      logger.error('Entity listesi alınamadı:', error.message);
-      throw new Error('Home Assistant entity listesi alınamadı');
+      logger.error('Home Assistant\'tan gerçek cihazları çekerken hata oluştu:', error.message);
+      throw new Error('HA cihazları alınamadı. Hata: ' + error.message);
     }
   }
 
   /**
-   * Belirli bir entity'nin durumunu getirir
-   * @param {string} entityId - Entity ID (örn: light.living_room)
-   * @returns {Object} Entity durumu
-   */
-  async getState(entityId) {
-    try {
-      const response = await this.apiClient.get(`/states/${entityId}`);
-      return response.data;
-    } catch (error) {
-      if (error.response?.status === 404) {
-        throw new Error(`Entity bulunamadı: ${entityId}`);
-      }
-      logger.error(`Entity durumu alınamadı (${entityId}):`, error.message);
-      throw new Error(`Entity durumu alınamadı: ${entityId}`);
-    }
-  }
-
-  /**
-   * Entity durumunu günceller
-   * @param {string} entityId - Entity ID
-   * @param {string} state - Yeni durum
-   * @param {Object} attributes - İlave özellikler
-   */
-  async setState(entityId, state, attributes = {}) {
-    try {
-      const data = {
-        state,
-        attributes
-      };
-      
-      const response = await this.apiClient.post(`/states/${entityId}`, data);
-      logger.info(`Entity durumu güncellendi: ${entityId} -> ${state}`);
-      return response.data;
-    } catch (error) {
-      logger.error(`Entity durumu güncellenemedi (${entityId}):`, error.message);
-      throw new Error(`Entity durumu güncellenemedi: ${entityId}`);
-    }
-  }
-
-  /**
-   * Servis çağırır (ana kontrol metodu)
+   * Servis çağırır (HA services API'si)
    * @param {string} domain - Servis alanı (örn: light, switch)
    * @param {string} service - Servis adı (örn: turn_on, turn_off)
    * @param {Object} serviceData - Servis parametreleri
    */
   async callService(domain, service, serviceData = {}) {
+    if (IS_SIMULATION_MODE) {
+      logger.info(`HomeAssistantAdapter: Servis çağrısı '${domain}.${service}' - '${serviceData.entity_id}' simüle ediliyor.`);
+      return { message: `Komut '${service}' '${serviceData.entity_id}' cihazına gönderildi (simule edildi).` };
+    }
     try {
-      const data = {
-        ...serviceData
-      };
-
-      const response = await this.apiClient.post(`/services/${domain}/${service}`, data);
+      const response = await haAxios.post(`/services/${domain}/${service}`, serviceData);
       logger.info(`Servis çağrıldı: ${domain}.${service}`, serviceData);
       return response.data;
     } catch (error) {
-      logger.error(`Servis çağrısı başarısız (${domain}.${service}):`, error.message);
-      throw new Error(`Servis çağrısı başarısız: ${domain}.${service}`);
+      logger.error(`HA servis çağrılırken hata: ${domain}.${service} - ${serviceData.entity_id}`, error.message);
+      throw new Error(`HA servisi çağrılamadı. Hata: ${error.message}`);
     }
   }
 
@@ -242,8 +228,8 @@ class HomeAssistantAdapter {
    */
   async getEntitiesByDomain(domain) {
     try {
-      const allStates = await this.getStates();
-      return allStates.filter(entity => entity.entity_id.startsWith(`${domain}.`));
+      const allStates = await this.getDevices(); // getStates yerine getDevices kullanıldı
+      return allStates.filter(entity => entity.id.startsWith(`${domain}.`)); // entity.entity_id yerine entity.id
     } catch (error) {
       logger.error(`Domain entity'leri alınamadı (${domain}):`, error.message);
       throw error;
@@ -301,10 +287,11 @@ class HomeAssistantAdapter {
   reconfigure(newConfig) {
     if (newConfig.baseURL) this.baseURL = newConfig.baseURL;
     if (newConfig.token) this.token = newConfig.token;
-    
+
     this.initializeClient();
     logger.info('Home Assistant adapter yeniden yapılandırıldı');
   }
 }
 
+// ÖNEMLİ: Class'ın bir instance'ını dışa aktarıyoruz ki app.js direkt metodları çağırabilsin
 module.exports = new HomeAssistantAdapter();

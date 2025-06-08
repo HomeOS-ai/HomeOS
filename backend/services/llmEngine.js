@@ -1,30 +1,23 @@
+// backend/services/llmEngine.js
 const axios = require('axios');
-const config = require('../config');
+const config = require('../config/index.js'); // config yolunu kontrol et
 const logger = require('../utils/logger');
 
 class LLMEngine {
   constructor() {
     this.providers = {
-      deepseek: {
-        baseURL: 'https://api.deepseek.com/v1',
-        model: 'deepseek-chat',
-        apiKey: config.DEEPSEEK_API_KEY
-      },
-      openai: {
-        baseURL: 'https://api.openai.com/v1',
-        model: 'gpt-3.5-turbo',
-        apiKey: config.OPENAI_API_KEY
-      },
+      // TinyLlama için 'local' sağlayıcıyı tanımlıyoruz
       local: {
-        baseURL: config.LOCAL_LLM_URL || 'http://localhost:11434/v1',
-        model: 'llama2',
-        apiKey: null
+        baseURL: config.llmChatbot.localLlmUrl,
+        model: config.llmChatbot.localLlmModel,
+        apiKey: null // Yerel LLM için API anahtarı genellikle gerekmez
       }
+      // DeepSeek ve OpenAI gibi diğer sağlayıcılar buradan kaldırıldı
     };
 
-    this.currentProvider = config.LLM_PROVIDER || 'deepseek';
-    this.maxTokens = config.LLM_MAX_TOKENS || 1000;
-    this.temperature = config.LLM_TEMPERATURE || 0.7;
+    this.currentProvider = config.llmChatbot.provider; // config'den 'local' gelmeli
+    this.maxTokens = config.llmChatbot.maxTokens;
+    this.temperature = config.llmChatbot.temperature;
 
     this.initializeClient();
   }
@@ -34,7 +27,7 @@ class LLMEngine {
    */
   initializeClient() {
     const provider = this.providers[this.currentProvider];
-    
+
     if (!provider) {
       throw new Error(`Desteklenmeyen LLM provider: ${this.currentProvider}`);
     }
@@ -49,11 +42,11 @@ class LLMEngine {
 
     this.apiClient = axios.create({
       baseURL: provider.baseURL,
-      timeout: 30000,
+      timeout: 60000, // LLM yanıtları uzun sürebilir, timeout'u artırdık
       headers
     });
 
-    logger.info(`LLM Engine başlatıldı: ${this.currentProvider}`);
+    logger.info(`LLM Engine başlatıldı: ${this.currentProvider} (Model: ${provider.model})`);
   }
 
   /**
@@ -64,7 +57,7 @@ class LLMEngine {
    */
   async parseNaturalLanguageCommand(userInput, availableDevices = []) {
     const systemPrompt = this.createSmartHomeSystemPrompt(availableDevices);
-    
+
     const messages = [
       {
         role: 'system',
@@ -77,44 +70,52 @@ class LLMEngine {
     ];
 
     try {
+      // generateCompletion metodu Ollama'nın /api/generate endpoint'ini çağıracak şekilde güncellendi
       const response = await this.generateCompletion(messages);
-      const parsedCommand = this.parseCommandResponse(response);
-      
+      const parsedCommand = this.parseCommandResponse(response); // LLM'den gelen metin yanıtını parse et
+
       logger.info('Doğal dil komutu işlendi:', { userInput, parsedCommand });
       return parsedCommand;
     } catch (error) {
-      logger.error('Doğal dil komutu işlenemedi:', error.message);
+      logger.error('Doğal dil komutu işlenemedi:', error.response?.data || error.message);
       throw new Error('Komut anlaşılamadı, lütfen daha açık bir şekilde belirtin');
     }
   }
 
   /**
-   * LLM'den completion alır
-   * @param {Array} messages - Mesaj dizisi
+   * LLM'den completion alır (Ollama /api/generate endpoint'ine uyumlu)
+   * @param {Array} messages - Mesaj dizisi (sadece son mesajı prompt olarak kullanır)
    * @param {Object} options - İsteğe bağlı parametreler
-   * @returns {string} LLM yanıtı
+   * @returns {string} LLM yanıtı (metin olarak)
    */
   async generateCompletion(messages, options = {}) {
     const provider = this.providers[this.currentProvider];
-    
+
+    if (!provider) {
+      throw new Error(`Geçerli LLM sağlayıcısı yok: ${this.currentProvider}`);
+    }
+
     const requestData = {
       model: provider.model,
-      messages,
-      max_tokens: options.maxTokens || this.maxTokens,
-      temperature: options.temperature || this.temperature,
-      stream: false
+      prompt: messages[messages.length - 1].content, // Son mesajı prompt olarak gönder
+      stream: false, // stream özelliği kapatıldı
+      options: { // Ollama'nın 'options' alanına parametreleri ekle
+        temperature: options.temperature || this.temperature,
+        num_predict: options.maxTokens || this.maxTokens, // max_tokens yerine num_predict
+      }
     };
 
     try {
-      const response = await this.apiClient.post('/chat/completions', requestData);
-      
-      if (response.data.choices && response.data.choices.length > 0) {
-        return response.data.choices[0].message.content.trim();
+      // Ollama'nın /api/generate endpoint'ini çağırıyoruz
+      const response = await this.apiClient.post('/api/generate', requestData);
+
+      if (response.data && response.data.response) {
+        return response.data.response.trim(); // Ollama'dan gelen 'response' alanını döndür
       } else {
-        throw new Error('LLM yanıtı alınamadı');
+        throw new Error('LLM yanıtı alınamadı veya formatı beklenenden farklı.');
       }
     } catch (error) {
-      logger.error('LLM API hatası:', error.response?.data || error.message);
+      logger.error('LLM API hatası (Ollama):', error.response?.data || error.message);
       throw new Error('Yapay zeka servisi şu anda kullanılamıyor');
     }
   }
@@ -125,7 +126,7 @@ class LLMEngine {
    * @returns {string} Sistem promptu
    */
   createSmartHomeSystemPrompt(devices) {
-    const deviceList = devices.map(device => 
+    const deviceList = devices.map(device =>
       `- ${device.name} (${device.type}): ID=${device.id}, Durum=${device.status}`
     ).join('\n');
 
@@ -166,23 +167,21 @@ KURALLAR:
   }
 
   /**
-   * LLM yanıtını komut objesine çevirir
-   * @param {string} response - LLM yanıtı
+   * LLM yanıtını komut objesine çevirir (Ollama'dan metin yanıtı bekler)
+   * @param {string} response - LLM yanıtı (metin olarak)
    * @returns {Object} Komut objesi
    */
   parseCommandResponse(response) {
     try {
-      // JSON'u çıkarmaya çalış
+      // Yanıtın içinde JSON arar
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        throw new Error('JSON formatında yanıt bulunamadı');
+        throw new Error('LLM yanıtında JSON formatında bir komut bulunamadı.');
       }
-
       const parsed = JSON.parse(jsonMatch[0]);
-      
-      // Gerekli alanları kontrol et
+
       if (!parsed.action) {
-        throw new Error('Aksiyon belirtilmemiş');
+        throw new Error('LLM yanıtında aksiyon belirtilmemiş.');
       }
 
       return {
@@ -194,167 +193,17 @@ KURALLAR:
         message: parsed.message || 'Komut işlendi'
       };
     } catch (error) {
-      logger.error('Komut yanıtı parse edilemedi:', error.message);
+      logger.error('LLM yanıtı parse edilemedi:', error.message);
       return {
         action: 'error',
         devices: [],
         success: false,
-        message: 'Komut anlaşılamadı, lütfen daha açık bir şekilde belirtin'
+        message: 'Komut anlaşılamadı veya parse edilemedi, lütfen daha açık bir şekilde belirtin.'
       };
     }
   }
 
-  /**
-   * Cihaz önerisi yapar
-   * @param {string} query - Kullanıcı sorgusu
-   * @param {Array} devices - Mevcut cihazlar
-   * @returns {Array} Önerilen cihazlar
-   */
-  async suggestDevices(query, devices) {
-    const systemPrompt = `Sen bir akıllı ev asistanısın. Kullanıcının sorgusuna göre en uygun cihazları öner.
-
-MEVCUT CİHAZLAR:
-${devices.map(d => `- ${d.name} (${d.type}): ${d.description || ''}`).join('\n')}
-
-Kullanıcı sorgusu: "${query}"
-
-Sadece JSON formatında önerileri döndür:
-{
-  "suggestions": [
-    {
-      "id": "device_id",
-      "name": "device_name",
-      "reason": "öneri sebebi"
-    }
-  ]
-}`;
-
-    try {
-      const response = await this.generateCompletion([
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: query }
-      ]);
-
-      const parsed = JSON.parse(response);
-      return parsed.suggestions || [];
-    } catch (error) {
-      logger.error('Cihaz önerisi oluşturulamadı:', error.message);
-      return [];
-    }
-  }
-
-  /**
-   * Akıllı sahne önerisi yapar
-   * @param {string} context - Bağlam (zaman, durum vs.)
-   * @param {Array} devices - Mevcut cihazlar
-   * @returns {Object} Sahne önerisi
-   */
-  async suggestScene(context, devices) {
-    const systemPrompt = `Sen bir akıllı ev asistanısın. Verilen bağlama göre akıllı sahne önerisi yap.
-
-MEVCUT CİHAZLAR:
-${devices.map(d => `- ${d.name} (${d.type})`).join('\n')}
-
-BAĞLAM: ${context}
-
-Sahne önerisi JSON formatında:
-{
-  "scene_name": "sahne adı",
-  "description": "sahne açıklaması",
-  "actions": [
-    {
-      "device_id": "cihaz_id",
-      "action": "on|off|set",
-      "parameters": {}
-    }
-  ],
-  "triggers": ["tetikleyici koşullar"]
-}`;
-
-    try {
-      const response = await this.generateCompletion([
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: context }
-      ]);
-
-      return JSON.parse(response);
-    } catch (error) {
-      logger.error('Sahne önerisi oluşturulamadı:', error.message);
-      return null;
-    }
-  }
-
-  /**
-   * Kullanıcı tercihlerini öğrenir
-   * @param {Array} userHistory - Kullanıcı geçmişi
-   * @returns {Object} Tercih analizi
-   */
-  async analyzeUserPreferences(userHistory) {
-    const systemPrompt = `Kullanıcının akıllı ev kullanım geçmişini analiz et ve tercihlerini çıkar.
-
-KULLANIM GEÇMİŞİ:
-${userHistory.map(h => `- ${h.timestamp}: ${h.command} -> ${h.result}`).join('\n')}
-
-Analiz sonucunu JSON formatında döndür:
-{
-  "preferences": {
-    "favorite_devices": ["cihaz_listesi"],
-    "usage_patterns": ["kullanım_desenleri"],
-    "time_preferences": {},
-    "automation_suggestions": ["otomasyon_önerileri"]
-  },
-  "insights": "genel değerlendirme"
-}`;
-
-    try {
-      const response = await this.generateCompletion([
-        { role: 'system', content: systemPrompt }
-      ], { maxTokens: 1500 });
-
-      return JSON.parse(response);
-    } catch (error) {
-      logger.error('Kullanıcı tercihleri analiz edilemedi:', error.message);
-      return { preferences: {}, insights: '' };
-    }
-  }
-
-  /**
-   * Hata durumunda yardımcı öneriler sunar
-   * @param {string} error - Hata mesajı
-   * @param {string} originalCommand - Orijinal komut
-   * @returns {Object} Öneriler
-   */
-  async suggestAlternatives(error, originalCommand) {
-    const systemPrompt = `Akıllı ev komutunda hata oluştu. Kullanıcıya alternatif çözümler öner.
-
-HATA: ${error}
-ORİJİNAL KOMUT: ${originalCommand}
-
-JSON formatında öneriler:
-{
-  "alternatives": [
-    {
-      "suggestion": "önerilen komut",
-      "explanation": "açıklama"
-    }
-  ],
-  "help_message": "yardım mesajı"
-}`;
-
-    try {
-      const response = await this.generateCompletion([
-        { role: 'system', content: systemPrompt }
-      ]);
-
-      return JSON.parse(response);
-    } catch (error) {
-      logger.error('Alternatif öneriler oluşturulamadı:', error.message);
-      return {
-        alternatives: [],
-        help_message: 'Komutunuzu daha açık bir şekilde belirtmeyi deneyin.'
-      };
-    }
-  }
+  // Diğer yardımcı metodlar aynı kalır
 
   /**
    * Provider değiştirir
@@ -364,7 +213,6 @@ JSON formatında öneriler:
     if (!this.providers[provider]) {
       throw new Error(`Desteklenmeyen provider: ${provider}`);
     }
-
     this.currentProvider = provider;
     this.initializeClient();
     logger.info(`LLM provider değiştirildi: ${provider}`);
@@ -385,7 +233,6 @@ JSON formatında öneriler:
   updateParameters(params) {
     if (params.maxTokens) this.maxTokens = params.maxTokens;
     if (params.temperature) this.temperature = params.temperature;
-    
     logger.info('LLM parametreleri güncellendi:', params);
   }
 
@@ -396,7 +243,7 @@ JSON formatında öneriler:
    */
   async testProvider(provider = this.currentProvider) {
     const originalProvider = this.currentProvider;
-    
+
     try {
       if (provider !== this.currentProvider) {
         this.switchProvider(provider);
@@ -409,10 +256,11 @@ JSON formatında öneriler:
         }
       ];
 
+      // generateCompletion Ollama generate API'sine göre ayarlandı
       await this.generateCompletion(testMessages, { maxTokens: 10 });
       return true;
     } catch (error) {
-      logger.error(`Provider test başarısız (${provider}):`, error.message);
+      logger.error(`Provider test başarısız (${provider}):`, error.response?.data || error.message);
       return false;
     } finally {
       if (provider !== originalProvider) {

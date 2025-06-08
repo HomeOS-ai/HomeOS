@@ -12,7 +12,7 @@ module.exports = (sequelize, DataTypes) => {
     
     // Home Assistant'taki entity_id ile eşleşmesi için
     haEntityId: {
-      type: DataTypes.STRING(255), // HA entity_id'ler genellikle stringtir
+      type: DataTypes.STRING(191), // HA entity_id'ler genellikle stringtir
       allowNull: false,
       unique: true // Her HA entity_id tekil olmalı
     },
@@ -65,19 +65,19 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true
     },
     locationPosition: { // JSON olarak koordinatlar
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       defaultValue: { x: 0, y: 0, z: 0 },
       allowNull: true
     },
     
     properties: { // Cihaza özel özellikler (JSON formatında)
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       defaultValue: {},
       allowNull: true
     },
     
     capabilities: { // Cihazın yetenekleri (JSON formatında)
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       defaultValue: [],
       allowNull: true
     },
@@ -106,7 +106,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     
     configuration: { // Cihazın bağlantı konfigürasyonu (JSON formatında)
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       defaultValue: {},
       allowNull: true
     },
@@ -118,31 +118,31 @@ module.exports = (sequelize, DataTypes) => {
     },
     
     lastCommand: { // Son komut bilgisi (JSON formatında)
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       defaultValue: {},
       allowNull: true
     },
     
     statistics: { // İstatistikler (JSON formatında)
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       defaultValue: { totalCommands: 0, successfulCommands: 0, lastErrorCount: 0, uptime: 0 },
       allowNull: true
     },
     
     energyConsumption: { // Enerji tüketimi (JSON formatında)
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       defaultValue: { current: 0, daily: 0, monthly: 0, unit: 'kWh' },
       allowNull: true
     },
     
     automation: { // Otomasyon bilgileri (JSON formatında)
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       defaultValue: {},
       allowNull: true
     },
     
     tags: { // Etiketler (JSON formatında string array olarak saklanabilir)
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       defaultValue: [],
       allowNull: true
     },
@@ -173,7 +173,7 @@ module.exports = (sequelize, DataTypes) => {
       // { fields: ['ownerId'] }, // ownerId için indeks (ilişki kurulunca)
       { fields: ['isActive'] },
       { fields: ['lastSeen'] },
-      { fields: ['tags'] } // JSON tipinde indeksleme için MySQL 8+ ve sanal sütun gerekebilir
+     // { fields: ['tags'] } // JSON tipinde indeksleme için MySQL 8+ ve sanal sütun gerekebilir
     ],
     // Instance methods ve Class methods (önceki Mongoose'taki gibi) burada tanımlanabilir
     // Ancak Sequelize'de bu metodlar farklı yazılır (örneğin Model.prototype.metodAdi = function() {} veya Model.staticMetod = function() {})

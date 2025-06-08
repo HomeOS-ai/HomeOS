@@ -1,4 +1,4 @@
-// backend/config/index.js
+	// backend/config/index.js
 require('dotenv').config(); // .env dosyasındaki ortam değişkenlerini yükler
 
 module.exports = {
@@ -13,10 +13,11 @@ module.exports = {
 
   // LLM Chatbot Ayarları
   llmChatbot: {
-    provider: process.env.LLM_PROVIDER || 'deepseek', // Kullanılacak LLM sağlayıcısı (deepseek, openai, local)
-    deepseekApiKey: process.env.DEEPSEEK_API_KEY || 'YOUR_DEEPSEEK_API_KEY_HERE',
-    openaiApiKey: process.env.OPENAI_API_KEY || 'YOUR_OPENAI_API_KEY_HERE',
+    provider: process.env.LLM_PROVIDER || 'local', // Kullanılacak LLM sağlayıcısı (deepseek, openai, local)
+//    deepseekApiKey: process.env.DEEPSEEK_API_KEY || 'YOUR_DEEPSEEK_API_KEY_HERE',
+  //  openaiApiKey: process.env.OPENAI_API_KEY || 'YOUR_OPENAI_API_KEY_HERE',
     localLlmUrl: process.env.LOCAL_LLM_URL || 'http://localhost:11434/v1', // Yerel LLM için Ollama URL'si
+    localLlmModel: process.env.LOCAL_LLM_MODEL || 'tinyllama', // Kullanılacak TinyLlama modeli
     maxTokens: parseInt(process.env.LLM_MAX_TOKENS || '1000', 10),
     temperature: parseFloat(process.env.LLM_TEMPERATURE || '0.7'),
   },

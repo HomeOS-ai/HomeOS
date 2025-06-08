@@ -1,3 +1,4 @@
+// backend/routes/llm.js
 const express = require('express');
 const router = express.Router();
 const LLMEngine = require('../services/llmEngine'); // LLM servis modülümüz
@@ -14,15 +15,17 @@ router.post('/chat', async (req, res) => {
     }
 
     try {
-        // LLMEngine'ın parseNaturalLanguageCommand metodu, komutu ayrıştırabilir
-        const llmResponse = await LLMEngine.parseNaturalLanguageCommand(userMessage, []); // Cihaz listesi henüz geçilmiyor
-        
+        // LLMEngine'dan doğrudan yanıt metnini alalım, parse etmeye çalışmayalım
+        const rawLlmResponse = await LLMEngine.generateCompletion([
+            { role: 'user', content: userMessage }
+        ]);
+
         res.json(apiResponse.success({
-            response: llmResponse.message || llmResponse.response, // LLM'den gelen yanıta göre
-            parsedCommand: llmResponse // LLM'den dönen komut yapısı
+            response: rawLlmResponse, // LLM'den gelen ham yanıtı döndür
+            parsedCommand: null // Komut ayrıştırma yapılmadığı için null
         }, 'LLM yanıtı başarılı.'));
     } catch (error) {
-        logger.error('LLM servisine bağlanırken hata:', error.message);
+        logger.error('LLM servisine bağlanırken veya yanıt alırken hata:', error.message);
         res.status(500).json(apiResponse.error('LLM servisine ulaşılamıyor veya hata döndü.', 'LLM_SERVICE_ERROR', error.message));
     }
 });

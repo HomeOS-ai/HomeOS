@@ -19,11 +19,11 @@ module.exports = (sequelize, DataTypes) => {
     },
 
     email: {
-      type: DataTypes.STRING(255),
+      type: DataTypes.STRING(191), // Düzeltme: VARCHAR(255) yerine 191 yapıldı
       allowNull: false,
       unique: true,
       validate: {
-        isEmail: true // E-posta formatını doğrular
+        isEmail: true
       }
     },
 
@@ -67,9 +67,9 @@ module.exports = (sequelize, DataTypes) => {
 
     // Diğer metadata veya ayarlar
     metadata: {
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT,
       allowNull: true,
-      defaultValue: {}
+      defaultValue: '', // Düzeltme: {} (boş obje) yerine '' (boş string) yapıldı
     }
   }, {
     sequelize,
@@ -102,6 +102,7 @@ module.exports = (sequelize, DataTypes) => {
 
   // Instance method: Şifre doğrulamak için
   User.prototype.isValidPassword = async function(password) {
+    if (!this.password) return false;
     return await bcrypt.compare(password, this.password);
   };
 
